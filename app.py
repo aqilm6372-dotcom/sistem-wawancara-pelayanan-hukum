@@ -10,6 +10,7 @@ Aplikasi Flask lokal untuk:
 
 import os
 import hmac
+import mimetypes
 from functools import wraps
 from datetime import datetime
 from io import BytesIO
@@ -29,10 +30,20 @@ from google import genai
 from google.genai import types
 
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 app = Flask(__name__)
+
+# Batas total ukuran file yang diupload per request (semua lampiran digabung).
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
+
+
+@app.errorhandler(413)
+def file_terlalu_besar(e):
+    return jsonify(
+        {"error": "Total ukuran file lampiran terlalu besar (maksimal 20MB)."}
+    ), 413
 
 # =========================================================================
 # 0. KONFIGURASI LOGIN
@@ -85,13 +96,6 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()  # Mengambil variabel dari file .env
-
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key = GEMINI_API_KEY)
 
 # =========================================================================
 # 1. KONFIGURASI GEMINI API  ->  TEMPELKAN API KEY ANDA DI BARIS DI BAWAH INI
@@ -101,8 +105,7 @@ client = genai.Client(api_key = GEMINI_API_KEY)
 # Catatan: library resmi Google saat ini adalah "google-genai" (paket lama
 # "google-generativeai" sudah deprecated per Mei 2025), jadi kode di bawah
 # memakai SDK terbaru tersebut. Cara pakainya sangat mirip.
-
-
+GEMINI_API_KEY = "MASUKKAN_API_KEY_ANDA_DISINI"
 # Alternatif yang lebih aman (opsional): simpan API key sebagai environment
 # variable, lalu baris di atas otomatis tidak dipakai jika env var tersedia.
 #   Windows (PowerShell) : $env:GEMINI_API_KEY = "isi-api-key-anda"
@@ -131,7 +134,11 @@ Instruksi:
 3. WAJIB pertahankan seluruh fakta asli yang disampaikan klien. Jangan
    menambah, mengurangi, mengarang, atau mengubah substansi fakta apa pun.
 4. Hanya perbaiki CARA PENYAMPAIANNYA, bukan isi ceritanya.
-5. Keluarkan HANYA teks hasil perbaikan dalam Bahasa Indonesia. Jangan
+5. Jika ada dokumen pendukung yang dilampirkan (gambar, PDF, atau file teks),
+   baca dan manfaatkan informasi relevan di dalamnya untuk melengkapi
+   kronologi (misalnya nomor sertifikat, tanggal, nama pihak). Tetap jangan
+   mengarang fakta yang tidak didukung oleh cerita klien maupun lampiran.
+6. Keluarkan HANYA teks hasil perbaikan dalam Bahasa Indonesia. Jangan
    tambahkan judul, salam pembuka, catatan, disclaimer, atau format
    markdown (tanpa tanda bintang, tanpa heading).
 """.strip()
@@ -151,19 +158,26 @@ def index():
 def generate():
     kategori = request.form.get("kategori", "").strip()
     cerita = request.form.get("cerita", "").strip()
+    file_list = request.files.getlist("dokumen")
 
     if not kategori or not cerita:
         return jsonify({"error": "Kategori dan cerita permasalahan wajib diisi."}), 400
 
+    # --- Proses semua file lampiran (gambar, PDF, Word, teks) ---
+    try:
+        teks_tambahan, media_parts, info_lampiran = proses_lampiran(file_list)
+    except Exception as e:
+        return jsonify({"error": f"Gagal memproses lampiran: {str(e)}"}), 500
+
     # --- Panggil Gemini API ---
     try:
-        teks_hukum = panggil_gemini(cerita)
+        teks_hukum = panggil_gemini(cerita, teks_tambahan, media_parts)
     except Exception as e:
         return jsonify({"error": f"Gagal memproses AI: {str(e)}"}), 500
 
     # --- Buat dokumen Word di memori ---
     try:
-        file_stream = buat_dokumen_word(kategori, teks_hukum)
+        file_stream = buat_dokumen_word(kategori, teks_hukum, info_lampiran)
     except Exception as e:
         return jsonify({"error": f"Gagal membuat dokumen: {str(e)}"}), 500
 
@@ -184,22 +198,124 @@ def generate():
 # =========================================================================
 # FUNGSI BANTUAN
 # =========================================================================
-def panggil_gemini(cerita: str) -> str:
-    """Mengirim cerita permasalahan ke Gemini API dan mengembalikan hasil
-    yang sudah dirapikan menjadi bahasa hukum formal."""
+
+# Ekstensi file yang didukung, dikelompokkan berdasarkan cara memprosesnya.
+EKSTENSI_GAMBAR = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+EKSTENSI_PDF = {".pdf"}
+EKSTENSI_WORD = {".docx"}
+EKSTENSI_TEKS = {".txt"}
+
+
+def proses_lampiran(file_list):
+    """Memproses semua file yang diupload klien.
+
+    - Gambar & PDF  -> dikirim LANGSUNG ke Gemini sebagai media, dibaca
+      secara native oleh AI (tidak perlu OCR manual).
+    - Word (.docx) & teks (.txt) -> isinya diekstrak sebagai teks lalu
+      digabungkan ke dalam prompt.
+    - Format lain (termasuk .doc lama) -> dilewati, dicatat sebagai
+      'tidak didukung' di laporan.
+
+    Mengembalikan tuple:
+      teks_tambahan  : gabungan teks hasil ekstraksi dari docx/txt
+      media_parts    : list of google.genai.types.Part (gambar/PDF)
+      info_lampiran  : list of dict untuk dicatat di dokumen Word hasil akhir
+    """
+    teks_tambahan_list = []
+    media_parts = []
+    info_lampiran = []
+
+    for f in file_list:
+        if not f or not f.filename:
+            continue
+
+        nama = f.filename
+        ekstensi = os.path.splitext(nama)[1].lower()
+        data = f.read()
+
+        if not data:
+            continue
+
+        if ekstensi in EKSTENSI_GAMBAR:
+            mime = mimetypes.guess_type(nama)[0] or "image/jpeg"
+            media_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+            info_lampiran.append({"nama": nama, "jenis": "Gambar", "bytes": data})
+
+        elif ekstensi in EKSTENSI_PDF:
+            media_parts.append(
+                types.Part.from_bytes(data=data, mime_type="application/pdf")
+            )
+            info_lampiran.append({"nama": nama, "jenis": "PDF", "bytes": None})
+
+        elif ekstensi in EKSTENSI_WORD:
+            try:
+                doc_dibaca = Document(BytesIO(data))
+                teks_docx = "\n".join(
+                    p.text for p in doc_dibaca.paragraphs if p.text.strip()
+                )
+                teks_tambahan_list.append(f"[Dari dokumen Word '{nama}']\n{teks_docx}")
+                info_lampiran.append({"nama": nama, "jenis": "Word", "bytes": None})
+            except Exception:
+                info_lampiran.append(
+                    {"nama": nama, "jenis": "Word (gagal dibaca)", "bytes": None}
+                )
+
+        elif ekstensi in EKSTENSI_TEKS:
+            try:
+                teks_txt = data.decode("utf-8", errors="ignore")
+                teks_tambahan_list.append(f"[Dari file teks '{nama}']\n{teks_txt}")
+                info_lampiran.append({"nama": nama, "jenis": "Teks", "bytes": None})
+            except Exception:
+                info_lampiran.append(
+                    {"nama": nama, "jenis": "Teks (gagal dibaca)", "bytes": None}
+                )
+
+        elif ekstensi == ".doc":
+            info_lampiran.append(
+                {
+                    "nama": nama,
+                    "jenis": "Tidak didukung (Word 97-2003, simpan ulang sebagai .docx)",
+                    "bytes": None,
+                }
+            )
+
+        else:
+            info_lampiran.append(
+                {"nama": nama, "jenis": "Tidak didukung (format tidak dikenali)", "bytes": None}
+            )
+
+    teks_tambahan = "\n\n".join(teks_tambahan_list)
+    return teks_tambahan, media_parts, info_lampiran
+
+
+def panggil_gemini(cerita: str, teks_tambahan: str = "", media_parts=None) -> str:
+    """Mengirim cerita permasalahan (+ isi lampiran, jika ada) ke Gemini API
+    dan mengembalikan hasil yang sudah dirapikan menjadi bahasa hukum formal."""
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
         temperature=0.4,
     )
+
+    prompt_utama = cerita
+    if teks_tambahan:
+        prompt_utama += (
+            "\n\n=== Isi Dokumen Pendukung yang Dilampirkan ===\n" + teks_tambahan
+        )
+
+    # contents berisi teks utama + (opsional) gambar/PDF yang dibaca native oleh Gemini
+    contents = [prompt_utama]
+    if media_parts:
+        contents.extend(media_parts)
+
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=cerita,
+        contents=contents,
         config=config,
     )
     return response.text.strip()
 
 
-def buat_dokumen_word(kategori: str, isi_teks: str) -> BytesIO:
+def buat_dokumen_word(kategori: str, isi_teks: str, info_lampiran=None) -> BytesIO:
     """Membuat file .docx di dalam RAM (io.BytesIO) — tidak pernah menulis
     file fisik ke disk, sehingga storage server tidak menumpuk."""
     doc = Document()
@@ -228,6 +344,23 @@ def buat_dokumen_word(kategori: str, isi_teks: str) -> BytesIO:
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         for r in p.runs:
             r.font.size = Pt(12)
+
+    # --- Daftar lampiran dokumen (jika ada) ---
+    if info_lampiran:
+        doc.add_paragraph()
+        doc.add_heading("Lampiran Dokumen", level=2)
+
+        for item in info_lampiran:
+            p = doc.add_paragraph()
+            run = p.add_run(f"• {item['nama']}  —  {item['jenis']}")
+            run.font.size = Pt(11)
+
+            # Gambar langsung disisipkan sebagai pratinjau di bawah nama filenya
+            if item["jenis"] == "Gambar" and item.get("bytes"):
+                try:
+                    doc.add_picture(BytesIO(item["bytes"]), width=Inches(4))
+                except Exception:
+                    doc.add_paragraph("   (Gagal menampilkan pratinjau gambar)")
 
     buffer = BytesIO()
     doc.save(buffer)
