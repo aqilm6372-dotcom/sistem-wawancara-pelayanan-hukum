@@ -69,7 +69,7 @@
             <!-- Alert untuk pesan error -->
             <div class="alert alert-danger" role="alert" id="alertBox"></div>
 
-            <form id="formWawancara" novalidate>
+            <form id="formWawancara" novalidate enctype="multipart/form-data">
 
               <!-- Kategori Permasalahan -->
               <div class="mb-4">
@@ -112,6 +112,28 @@
                 </div>
               </div>
 
+              <!-- Lampiran Dokumen -->
+              <div class="mb-4">
+                <label for="dokumen" class="form-label">
+                  Lampiran Dokumen <span class="text-muted fw-normal">(opsional)</span>
+                </label>
+                <input
+                  class="form-control"
+                  type="file"
+                  id="dokumen"
+                  name="dokumen"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.pdf,.docx,.txt"
+                >
+                <div class="form-text">
+                  Format didukung: gambar (JPG/PNG/WEBP), PDF, Word (.docx),
+                  dan teks (.txt). Total ukuran maksimal 20MB. Foto/scan bukti
+                  seperti KTP, sertifikat, atau surat perjanjian akan ikut
+                  dibaca AI untuk melengkapi laporan.
+                </div>
+                <div id="daftarFile" class="mt-2 small"></div>
+              </div>
+
               <!-- Tombol Submit -->
               <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">
@@ -138,6 +160,63 @@
     const form = document.getElementById("formWawancara");
     const btnSubmit = document.getElementById("btnSubmit");
     const alertBox = document.getElementById("alertBox");
+    const inputDokumen = document.getElementById("dokumen");
+    const daftarFile = document.getElementById("daftarFile");
+
+    // Menyimpan daftar file terpilih secara manual (bisa ditambah & dihapus satu per satu).
+    // Dipakai karena FileList bawaan browser bersifat read-only, tidak bisa dihapus langsung.
+    let berkasTerpilih = new DataTransfer();
+
+    function renderDaftarFile() {
+      daftarFile.innerHTML = "";
+      if (berkasTerpilih.files.length === 0) return;
+
+      const ul = document.createElement("ul");
+      ul.className = "list-group list-group-flush mt-2";
+
+      Array.from(berkasTerpilih.files).forEach((file, index) => {
+        const ukuranKB = (file.size / 1024).toFixed(0);
+        const li = document.createElement("li");
+        li.className =
+          "list-group-item d-flex justify-content-between align-items-center px-2 py-1";
+        li.innerHTML = `
+          <span><i class="bi bi-paperclip"></i> ${file.name} <span class="text-muted">(${ukuranKB} KB)</span></span>
+          <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-hapus-file" data-index="${index}" title="Hapus file ini">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        `;
+        ul.appendChild(li);
+      });
+
+      daftarFile.appendChild(ul);
+
+      // Pasang event klik untuk setiap tombol hapus
+      daftarFile.querySelectorAll(".btn-hapus-file").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          hapusFile(parseInt(this.dataset.index, 10));
+        });
+      });
+    }
+
+    function hapusFile(index) {
+      const sisa = new DataTransfer();
+      Array.from(berkasTerpilih.files).forEach((file, i) => {
+        if (i !== index) sisa.items.add(file);
+      });
+      berkasTerpilih = sisa;
+      inputDokumen.files = berkasTerpilih.files;
+      renderDaftarFile();
+    }
+
+    // Setiap kali user memilih file baru, TAMBAHKAN ke daftar yang sudah ada
+    // (bukan menggantinya), supaya bisa memilih file secara bertahap.
+    inputDokumen.addEventListener("change", function () {
+      Array.from(inputDokumen.files).forEach((file) => {
+        berkasTerpilih.items.add(file);
+      });
+      inputDokumen.files = berkasTerpilih.files;
+      renderDaftarFile();
+    });
 
     const TEKS_TOMBOL_NORMAL = '<i class="bi bi-check2-circle"></i> Selesai';
     const TEKS_TOMBOL_PROSES =
@@ -209,6 +288,9 @@
         // Reset form setelah berhasil
         form.reset();
         form.classList.remove("was-validated");
+        berkasTerpilih = new DataTransfer();
+        inputDokumen.files = berkasTerpilih.files;
+        renderDaftarFile();
 
       } catch (err) {
         tampilkanError(err.message || "Gagal menghubungi server.");
