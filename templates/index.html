@@ -3,122 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Wawancara Pelayanan Hukum</title>
+  <title>Sistem Pelayanan Hukum Datun - Kejaksaan RI</title>
 
-  <!-- Bootstrap 5 CDN -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  >
-  <!-- Bootstrap Icons (opsional, untuk tampilan lebih rapi) -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-  >
+  <!-- Bootstrap 5 & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   <style>
+    :root {
+      /* Skema Warna Utama Datun Kejaksaan */
+      --datun-gold-primary: #f8b500;
+      --datun-gold-dark: #c68a00;
+      --datun-gold-light: #fff8e1;
+      --datun-green-primary: #074720;
+      --datun-green-light: #0d6b33;
+      --datun-green-dark: #042e14;
+      --bg-body: #fffcf2;
+    }
+
     body {
-      background-color: #f4f6f9;
+      background-color: var(--bg-body);
       min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      position: relative;
+      overflow-x: hidden;
     }
-    .card-header-custom {
-      background-color: #0d3b66;
+
+    /* ========================================================
+       ELEMENTS / ORNAMENS BACKGROUND (DI BELAKANG BORDER & CARD)
+       ======================================================== */
+    .bg-ornament-container {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1; /* Di belakang konten utama (z-index konten = 10) */
+    }
+
+    .ornament-icon {
+      position: absolute;
+      color: var(--datun-green-primary);
+      opacity: 0.05; /* Dibuat lembut transparan */
+    }
+
+    /* Posisi Elemen Hukum di Samping & Belakang Halaman */
+    .ornament-1 { top: 12%; right: -4%; font-size: 28rem; transform: rotate(-10deg); } /* Timbangan Kanan */
+    .ornament-2 { bottom: 5%; left: -5%; font-size: 30rem; transform: rotate(8deg); }  /* Perisai Kiri */
+    .ornament-3 { top: 45%; left: 2%; font-size: 14rem; transform: rotate(-12deg); } /* Gedung Kiri Tengah */
+    .ornament-4 { bottom: 20%; right: 3%; font-size: 15rem; transform: rotate(15deg); } /* Buku Hukum Kanan Bawah */
+
+    /* Navbar Emas Dominan */
+    .navbar-datun {
+      background: linear-gradient(90deg, #e6a100 0%, #f8b500 50%, #d48a00 100%);
+      border-bottom: 4px solid var(--datun-green-primary);
+      box-shadow: 0 4px 18px rgba(198, 138, 0, 0.25);
+    }
+
+    .brand-badge {
+      background-color: var(--datun-green-primary);
       color: #ffffff;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
     }
+
+    /* Card Utama */
+    .card-custom {
+      border: 2px solid var(--datun-gold-primary);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(230, 161, 0, 0.12);
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .card-header-gold {
+      background: linear-gradient(135deg, #f8b500 0%, #d48a00 100%);
+      color: #000000;
+      border-bottom: 3px solid var(--datun-green-primary);
+      padding: 1.2rem 1.5rem;
+    }
+
+    .card-header-green {
+      background: linear-gradient(135deg, var(--datun-green-primary) 0%, #0d6b33 100%);
+      color: #ffffff;
+      border-bottom: 3px solid var(--datun-gold-primary);
+      padding: 1.2rem 1.5rem;
+    }
+
     .form-label {
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--datun-green-dark);
     }
-    #alertBox {
+
+    /* Tombol Aksi */
+    .btn-datun-gold {
+      background: linear-gradient(45deg, #f8b500, #ffd24d);
+      color: #000000;
+      border: none;
+      font-weight: 800;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 14px rgba(248, 181, 0, 0.35);
+    }
+    .btn-datun-gold:hover {
+      background: linear-gradient(45deg, #e09b00, #f8b500);
+      color: #000;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(224, 155, 0, 0.45);
+    }
+
+    .btn-datun-green {
+      background: linear-gradient(45deg, var(--datun-green-primary), #0d6b33);
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 14px rgba(7, 71, 32, 0.25);
+    }
+    .btn-datun-green:hover {
+      background: linear-gradient(45deg, #042e14, var(--datun-green-primary));
+      color: var(--datun-gold-primary);
+      transform: translateY(-2px);
+    }
+
+    #alertBox, #previewCard {
       display: none;
-    }
-    footer {
-      color: #6c757d;
     }
   </style>
 </head>
 <body>
 
-  <div class="container py-5">
+  <!-- LAYER AKSEN/ORNAMEN HUKUM BACKGROUND (BERADA DI BELAKANG BORDER) -->
+  <div class="bg-ornament-container">
+    <i class="bi bi-scale-balanced ornament-icon ornament-1"></i>
+    <i class="bi bi-shield-check ornament-icon ornament-2"></i>
+    <i class="bi bi-bank ornament-icon ornament-3"></i>
+    <i class="bi bi-journal-bookmark-fill ornament-icon ornament-4"></i>
+  </div>
+
+  <!-- NAVBAR HEADER -->
+  <nav class="navbar navbar-light navbar-datun mb-4 position-relative" style="z-index: 10;">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <i class="bi bi-scale-balanced fs-2 text-dark me-2"></i>
+        <div>
+          <span class="fw-bold d-block leading-tight text-dark">POS PELAYANAN HUKUM</span>
+          <small class="text-dark-50 fs-7 fw-semibold">Perdata dan Tata Usaha Negara (DATUN)</small>
+        </div>
+      </a>
+      <div class="d-flex align-items-center gap-3">
+        <span class="brand-badge d-none d-md-inline-block"><i class="bi bi-shield-check me-1"></i> KEJAKSAAN RI</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-dark btn-sm fw-bold rounded-pill px-3">
+          <i class="bi bi-box-arrow-right me-1"></i> Keluar
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- KONTEN UTAMA HASIL INTERAKSI -->
+  <div class="container pb-5 position-relative" style="z-index: 10;">
     <div class="row justify-content-center">
-      <div class="col-lg-8 col-md-10">
+      <div class="col-lg-10">
 
-        <div class="d-flex justify-content-end mb-2">
-          <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-box-arrow-right"></i> Logout
-          </a>
+        <!-- BANNER SAMBUTAN EMAN/KUNING -->
+        <div class="p-4 mb-4 rounded-4 text-dark shadow-sm" style="background: linear-gradient(135deg, #fff3c4 0%, #f8b500 100%); border-left: 6px solid var(--datun-green-primary);">
+          <div class="d-flex align-items-center">
+            <div class="me-3 d-none d-md-block">
+              <i class="bi bi-bank2 text-dark display-4"></i>
+            </div>
+            <div>
+              <h4 class="fw-bold mb-1 text-dark">Formulir Digital Wawancara Permasalahan Hukum</h4>
+              <p class="mb-0 text-dark-50">Sistem Kecerdasan Buatan (AI) terintegrasi untuk mentransformasi kronologi narasi masyarakat menjadi dokumen laporan hukum formal berstandar Kejaksaan.</p>
+            </div>
+          </div>
         </div>
 
-        <div class="text-center mb-4">
-          <h2 class="fw-bold text-primary">
-            <i class="bi bi-bank2"></i> Sistem Wawancara Pelayanan Hukum
-          </h2>
-          <p class="text-muted">
-            Isi formulir di bawah ini, dan AI akan membantu merapikan cerita
-            permasalahan Anda menjadi laporan berbahasa hukum formal.
-          </p>
-        </div>
-
-        <div class="card shadow-sm border-0">
-          <div class="card-header card-header-custom py-3">
-            <i class="bi bi-file-earmark-text"></i>
-            Formulir Wawancara Klien
+        <!-- TAHAP 1: FORMULIR INPUT WAWANCARA -->
+        <div class="card card-custom mb-4">
+          <div class="card-header card-header-gold d-flex align-items-center">
+            <i class="bi bi-file-earmark-text-fill fs-4 me-2"></i>
+            <h5 class="mb-0 fw-bold">Input Data Wawancara Permasalahan</h5>
           </div>
 
           <div class="card-body p-4">
 
-            <!-- Alert untuk pesan error -->
-            <div class="alert alert-danger" role="alert" id="alertBox"></div>
+            <!-- Alert Pesan Error -->
+            <div class="alert alert-danger shadow-sm border-0 rounded-3" role="alert" id="alertBox"></div>
 
             <form id="formWawancara" novalidate enctype="multipart/form-data">
 
               <!-- Kategori Permasalahan -->
               <div class="mb-4">
                 <label for="kategori" class="form-label">
-                  Kategori Permasalahan <span class="text-danger">*</span>
+                  <i class="bi bi-tags-fill text-success me-1"></i> Kategori Permasalahan Datun <span class="text-danger">*</span>
                 </label>
-                <select class="form-select form-select-lg" id="kategori" name="kategori" required>
-                  <option value="" selected disabled>-- Pilih Kategori Permasalahan --</option>
-                  <option value="Warisan">Warisan</option>
-                  <option value="Hutang Piutang">Hutang Piutang</option>
-                  <option value="Pertanahan">Pertanahan</option>
-                  <option value="Wanprestasi">Wanprestasi</option>
-                  <option value="Permasalahan Keluarga">Permasalahan Keluarga</option>
-                  <option value="Melawan Hukum">Melawan Hukum</option>
+                <select class="form-select form-select-lg border-2" id="kategori" name="kategori" required>
+                  <option value="" selected disabled>-- Pilih Kategori Kasus/Permasalahan --</option>
+                  <option value="Warisan">Warisan & Sengketa Ahli Waris</option>
+                  <option value="Hutang Piutang">Hutang Piutang & Pinjaman</option>
+                  <option value="Pertanahan">Pertanahan & Sengketa Tanah</option>
+                  <option value="Wanprestasi">Wanprestasi & Perjanjian/Kontrak</option>
+                  <option value="Permasalahan Keluarga">Permasalahan Keluarga & Perkawinan</option>
+                  <option value="Melawan Hukum">Perbuatan Melawan Hukum (Sipil)</option>
                 </select>
                 <div class="invalid-feedback">
-                  Silakan pilih kategori permasalahan terlebih dahulu.
+                  Pilihlah salah satu kategori permasalahan terlebih dahulu.
                 </div>
               </div>
 
-              <!-- Cerita Permasalahan -->
+              <!-- Uraian Cerita Permasalahan -->
               <div class="mb-4">
                 <label for="cerita" class="form-label">
-                  Cerita Permasalahan <span class="text-danger">*</span>
+                  <i class="bi bi-chat-left-text-fill text-success me-1"></i> Kronologi / Cerita Permasalahan Klien <span class="text-danger">*</span>
                 </label>
                 <textarea
-                  class="form-control"
+                  class="form-control border-2"
                   id="cerita"
                   name="cerita"
-                  rows="12"
-                  placeholder="Ceritakan kronologi permasalahan Anda secara lengkap di sini..."
+                  rows="9"
+                  placeholder="Tuliskan kronologi permasalahan secara lengkap dan jelas (nama pihak, tanggal kejadian, tempat, serta duduk perkara)..."
                   required
                 ></textarea>
                 <div class="invalid-feedback">
-                  Cerita permasalahan wajib diisi.
+                  Uraian cerita permasalahan wajib diisi.
                 </div>
-                <div class="form-text">
-                  Semakin lengkap cerita yang Anda tuliskan, semakin akurat
-                  laporan hukum yang dihasilkan.
+                <div class="form-text text-muted">
+                  <i class="bi bi-info-circle me-1"></i> Makin runtut kronologi yang dimasukkan, makin presisi draf resume hukum yang dihasilkan AI.
                 </div>
               </div>
 
-              <!-- Lampiran Dokumen -->
+              <!-- Lampiran Dokumen Berkas -->
               <div class="mb-4">
                 <label for="dokumen" class="form-label">
-                  Lampiran Dokumen <span class="text-muted fw-normal">(opsional)</span>
+                  <i class="bi bi-paperclip text-success me-1"></i> Lampiran Berkas Pendukung <span class="text-muted fw-normal">(Opsional)</span>
                 </label>
                 <input
-                  class="form-control"
+                  class="form-control border-2"
                   type="file"
                   id="dokumen"
                   name="dokumen"
@@ -126,18 +250,16 @@
                   accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.pdf,.docx,.txt"
                 >
                 <div class="form-text">
-                  Format didukung: gambar (JPG/PNG/WEBP), PDF, Word (.docx),
-                  dan teks (.txt). Total ukuran maksimal 20MB. Foto/scan bukti
-                  seperti KTP, sertifikat, atau surat perjanjian akan ikut
-                  dibaca AI untuk melengkapi laporan.
+                  Dukungan format: Foto/Gambar (JPG/PNG), File PDF, Dokumen Word (.docx), dan Teks (.txt). Maksimal 20MB.
                 </div>
-                <div id="daftarFile" class="mt-2 small"></div>
+                <!-- Container Daftar File Terpilih -->
+                <div id="daftarFile" class="mt-2"></div>
               </div>
 
-              <!-- Tombol Submit -->
-              <div class="d-grid">
-                <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">
-                  <i class="bi bi-check2-circle"></i> Selesai
+              <!-- Tombol Submit Analisis -->
+              <div class="d-grid pt-2">
+                <button type="submit" class="btn btn-datun-gold btn-lg py-3" id="btnSubmit">
+                  <i class="bi bi-cpu-fill me-2"></i> Analisis AI & Buat Pratinjau Teks
                 </button>
               </div>
 
@@ -145,44 +267,81 @@
           </div>
         </div>
 
-        <footer class="text-center mt-4 small">
-          &copy; 2026 Sistem Wawancara Pelayanan Hukum — Aplikasi Lokal
+        <!-- TAHAP 2: PRATINJAU & EDITING HASIL LINGUISTIK AI -->
+        <div class="card card-custom mb-4" id="previewCard">
+          <div class="card-header card-header-green d-flex align-items-center">
+            <i class="bi bi-pencil-square fs-4 me-2"></i>
+            <h5 class="mb-0 fw-bold">Pratinjau & Penyuntingan Laporan Hukum AI</h5>
+          </div>
+          <div class="card-body p-4">
+            
+            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-3" role="alert">
+              <i class="bi bi-lightbulb-fill text-dark fs-4 me-3"></i>
+              <div>
+                <strong>Catatan Jaksa / Petugas:</strong> Anda dapat memeriksa kembali, menambah, atau mengedit langsung teks narasi hukum di bawah ini sebelum diunduh menjadi berkas Word resmi (.docx).
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="editorTeks" class="form-label text-success">Draf Narasi Bahasa Hukum Formal:</label>
+              <textarea class="form-control border-2 p-3" id="editorTeks" rows="14" style="font-family: 'Times New Roman', Times, serif; font-size: 16px; line-height: 1.6;"></textarea>
+            </div>
+
+            <!-- Tombol Unduh Dokumen Word -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end pt-2">
+              <button type="button" class="btn btn-datun-green btn-lg px-4 py-2" id="btnDownloadWord">
+                <i class="bi bi-file-earmark-word-fill me-2"></i> Unduh Dokumen Word (.docx)
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <footer class="text-center mt-5 mb-3 text-muted small">
+          <p class="mb-1">&copy; 2026 Bidang Perdata dan Tata Usaha Negara — Kejaksaan Republik Indonesia</p>
+          <span class="badge bg-warning text-dark fw-bold">Aplikasi Pos Pelayanan Hukum Lokal</span>
         </footer>
 
       </div>
     </div>
   </div>
 
-  <!-- Bootstrap 5 JS Bundle (Popper included) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
+    // Inisialisasi Elemen DOM
     const form = document.getElementById("formWawancara");
     const btnSubmit = document.getElementById("btnSubmit");
     const alertBox = document.getElementById("alertBox");
     const inputDokumen = document.getElementById("dokumen");
     const daftarFile = document.getElementById("daftarFile");
 
-    // Menyimpan daftar file terpilih secara manual (bisa ditambah & dihapus satu per satu).
-    // Dipakai karena FileList bawaan browser bersifat read-only, tidak bisa dihapus langsung.
-    let berkasTerpilih = new DataTransfer();
+    const previewCard = document.getElementById("previewCard");
+    const editorTeks = document.getElementById("editorTeks");
+    const btnDownloadWord = document.getElementById("btnDownloadWord");
 
+    // Menyimpan daftar file lampiran
+    let berkasTerpilih = new DataTransfer();
+    
+    let kategoriAktif = "";
+    let lampiranAktif = [];
+
+    // Tampilkan / Render List File Lampiran Terpilih
     function renderDaftarFile() {
       daftarFile.innerHTML = "";
       if (berkasTerpilih.files.length === 0) return;
 
       const ul = document.createElement("ul");
-      ul.className = "list-group list-group-flush mt-2";
+      ul.className = "list-group mt-2 shadow-sm";
 
       Array.from(berkasTerpilih.files).forEach((file, index) => {
         const ukuranKB = (file.size / 1024).toFixed(0);
         const li = document.createElement("li");
-        li.className =
-          "list-group-item d-flex justify-content-between align-items-center px-2 py-1";
+        li.className = "list-group-item d-flex justify-content-between align-items-center py-2";
         li.innerHTML = `
-          <span><i class="bi bi-paperclip"></i> ${file.name} <span class="text-muted">(${ukuranKB} KB)</span></span>
+          <span><i class="bi bi-file-earmark-text text-warning me-2"></i> <strong>${file.name}</strong> <span class="text-muted ms-2">(${ukuranKB} KB)</span></span>
           <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 btn-hapus-file" data-index="${index}" title="Hapus file ini">
-            <i class="bi bi-x-lg"></i>
+            <i class="bi bi-trash-fill"></i>
           </button>
         `;
         ul.appendChild(li);
@@ -190,7 +349,7 @@
 
       daftarFile.appendChild(ul);
 
-      // Pasang event klik untuk setiap tombol hapus
+      // Listener Event Hapus File per Item
       daftarFile.querySelectorAll(".btn-hapus-file").forEach((btn) => {
         btn.addEventListener("click", function () {
           hapusFile(parseInt(this.dataset.index, 10));
@@ -208,8 +367,6 @@
       renderDaftarFile();
     }
 
-    // Setiap kali user memilih file baru, TAMBAHKAN ke daftar yang sudah ada
-    // (bukan menggantinya), supaya bisa memilih file secara bertahap.
     inputDokumen.addEventListener("change", function () {
       Array.from(inputDokumen.files).forEach((file) => {
         berkasTerpilih.items.add(file);
@@ -218,12 +375,11 @@
       renderDaftarFile();
     });
 
-    const TEKS_TOMBOL_NORMAL = '<i class="bi bi-check2-circle"></i> Selesai';
-    const TEKS_TOMBOL_PROSES =
-      '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Memproses Dokumen...';
+    const TEKS_SUBMIT_NORMAL = '<i class="bi bi-cpu-fill me-2"></i> Analisis AI & Buat Pratinjau Teks';
+    const TEKS_SUBMIT_PROSES = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Sedang Memproses Analisis Hukum AI...';
 
     function tampilkanError(pesan) {
-      alertBox.textContent = pesan;
+      alertBox.innerHTML = `<i class="bi bi-exclamation-octagon-fill me-2"></i> ${pesan}`;
       alertBox.style.display = "block";
       alertBox.scrollIntoView({ behavior: "smooth", block: "center" });
     }
@@ -233,20 +389,20 @@
       alertBox.textContent = "";
     }
 
+    // 1. GENERATE & PREVIEW (AJAX)
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
       sembunyikanError();
 
-      // Validasi Bootstrap bawaan
       if (!form.checkValidity()) {
         form.classList.add("was-validated");
         return;
       }
       form.classList.add("was-validated");
 
-      // Ubah tombol menjadi state "memproses" & disable agar tidak double klik
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = TEKS_TOMBOL_PROSES;
+      btnSubmit.innerHTML = TEKS_SUBMIT_PROSES;
+      previewCard.style.display = "none";
 
       const formData = new FormData(form);
 
@@ -256,48 +412,73 @@
           body: formData,
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-          // Coba baca pesan error dari server (format JSON)
-          let pesanError = "Terjadi kesalahan saat memproses dokumen.";
-          try {
-            const dataError = await response.json();
-            if (dataError.error) pesanError = dataError.error;
-          } catch (_) {}
-          throw new Error(pesanError);
+          throw new Error(data.error || "Terjadi kesalahan saat memproses dokumen.");
         }
 
-        // Ambil nama file dari header Content-Disposition jika tersedia
-        let namaFile = "Laporan_Hukum.docx";
-        const disposition = response.headers.get("Content-Disposition");
-        if (disposition && disposition.includes("filename=")) {
-          const match = disposition.match(/filename="?([^"]+)"?/);
-          if (match && match[1]) namaFile = match[1];
+        kategoriAktif = data.kategori;
+        lampiranAktif = data.lampiran;
+        editorTeks.value = data.teks_hukum;
+
+        previewCard.style.display = "block";
+        previewCard.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      } catch (err) {
+        tampilkanError(err.message || "Gagal menghubungi server.");
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = TEKS_SUBMIT_NORMAL;
+      }
+    });
+
+    // 2. UNDUH FILE WORD (.DOCX)
+    btnDownloadWord.addEventListener("click", async function () {
+      const teksEdited = editorTeks.value.trim();
+
+      if (!teksEdited) {
+        tampilkanError("Teks laporan tidak boleh kosong saat hendak diunduh.");
+        return;
+      }
+
+      btnDownloadWord.disabled = true;
+      btnDownloadWord.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyusun Dokumen Word...';
+
+      try {
+        const response = await fetch("/download_word", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kategori: kategoriAktif,
+            teks_hukum: teksEdited,
+            lampiran: lampiranAktif
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || "Gagal mengunduh file.");
         }
 
-        // Unduh file .docx dari response (blob)
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = namaFile;
+        
+        const namaKategori = kategoriAktif ? kategoriAktif.replace(/ /g, "_") : "Umum";
+        a.download = `Laporan_Hukum_Datun_${namaKategori}.docx`;
+        
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
 
-        // Reset form setelah berhasil
-        form.reset();
-        form.classList.remove("was-validated");
-        berkasTerpilih = new DataTransfer();
-        inputDokumen.files = berkasTerpilih.files;
-        renderDaftarFile();
-
       } catch (err) {
-        tampilkanError(err.message || "Gagal menghubungi server.");
+        tampilkanError(err.message || "Gagal mengunduh dokumen Word.");
       } finally {
-        // Kembalikan tombol ke kondisi semula
-        btnSubmit.disabled = false;
-        btnSubmit.innerHTML = TEKS_TOMBOL_NORMAL;
+        btnDownloadWord.disabled = false;
+        btnDownloadWord.innerHTML = '<i class="bi bi-file-earmark-word-fill me-2"></i> Unduh Dokumen Word (.docx)';
       }
     });
   </script>
